@@ -1,0 +1,4 @@
+# Claude Code が読み込み時に書き出す型定義（各自の環境で生成される）
+plugins/*/.claude-plugin/types/
+plugins/*/tsconfig.json
+node_modules/

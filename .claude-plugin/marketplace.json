@@ -1,0 +1,17 @@
+{
+  "name": "machi-yomi",
+  "owner": {
+    "name": "takuopannya",
+    "url": "https://github.com/takuopannya"
+  },
+  "metadata": {
+    "description": "Claude Code の待ち時間に「知のセレンディピティ」を届ける mod"
+  },
+  "plugins": [
+    {
+      "name": "machi-yomi",
+      "source": "./plugins/machi-yomi",
+      "description": "Claude が作業している間、入力欄の上に Wikipedia・論文・統計・辞書・技術記事・青空文庫などのランダムな記事を表示する"
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "name": "machi-yomi",
+  "version": "0.4.0",
+  "description": "Claude が作業している間、入力欄の上に Wikipedia・論文（arXiv / OpenAlex）・統計・辞書・技術記事・青空文庫などのランダムな記事を切り替えて表示する「知のセレンディピティ」mod",
+  "author": {
+    "name": "takuopannya",
+    "url": "https://github.com/takuopannya"
+  },
+  "homepage": "https://github.com/takuopannya/machi-yomi",
+  "repository": "https://github.com/takuopannya/machi-yomi",
+  "license": "MIT",
+  "keywords": [
+    "mod",
+    "serendipity",
+    "japanese",
+    "wikipedia",
+    "arxiv"
+  ],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "intervalSeconds": {
+      "type": "number",
+      "title": "切り替え間隔（秒）",
+      "description": "表示する記事を切り替える間隔",
+      "default": 30,
+      "min": 5,
+      "max": 600
+    },
+    "translator": {
+      "type": "string",
+      "title": "英語の記事の翻訳",
+      "description": "none: 英語のまま / claude: 自分の Claude で訳す（トークンを少し使う） / deepl: DeepL API で訳す（キーが必要） / ollama: ローカル LLM で訳す",
+      "options": [
+        "none",
+        "claude",
+        "deepl",
+        "ollama"
+      ],
+      "default": "none"
+    },
+    "claudeModel": {
+      "type": "string",
+      "title": "翻訳に使う Claude のモデル",
+      "description": "translator が claude のときに使うモデル（別名かモデルID）",
+      "default": "haiku"
+    },
+    "deeplApiKey": {
+      "type": "string",
+      "title": "DeepL API キー",
+      "description": "translator が deepl のときに使う。Free プランのキー（末尾 :fx）も使える",
+      "sensitive": true,
+      "default": ""
+    },
+    "ollamaUrl": {
+      "type": "string",
+      "title": "Ollama の URL",
+      "description": "translator が ollama のときの接続先",
+      "default": "http://localhost:11434"
+    },
+    "ollamaModel": {
+      "type": "string",
+      "title": "Ollama のモデル",
+      "description": "translator が ollama のときに使うモデル名",
+      "default": "qwen2.5:7b"
+    }
+  }
+}
