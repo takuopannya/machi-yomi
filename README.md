@@ -124,7 +124,7 @@ claude plugin test plugins/machi-yomi
 
 この mod が気に入ったら、コーヒー1杯ぶんの応援をいただけるとうれしいです。
 
-<a href="https://www.buymeacoffee.com/ju2shitamaki" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" height="60" width="217"></a>
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/G2G8NKGTO)
 
 ## ライセンス
 
