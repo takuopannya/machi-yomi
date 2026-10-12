@@ -52,7 +52,7 @@ If translation fails, the original English is shown.
 
 ## Ads and affiliate links
 
-This version contains no ads or affiliate links.
+This mod contains no ads or affiliate links.
 
 ## Requirements
 
