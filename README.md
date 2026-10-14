@@ -32,6 +32,7 @@ Claude Code が作業している待ち時間に、入力欄の上へランダ�
 | 日本の企業（Wikipedia 日本語版） | 東証プライム・スタンダード・グロース上場企業、日本の多国籍企業から1社 | 日本語 |
 | 海外の企業（Wikipedia 英語版） | ニューヨーク・ナスダック・ロンドン・パリ・フランクフルト・香港・韓国・ボンベイの上場企業から1社 | 英語 |
 | [ジャパンサーチ](https://jpsearch.go.jp/) | 美術・文化財などのデジタルアーカイブ | 日本語 |
+| [国際日本文化研究センター（日文研）](https://www.nichibun.ac.jp/ja/db/) | ちりめん本・平安京都名所図会・在外日本美術などの資料と、怪異・妖怪伝承や和歌・連歌などのデータベース紹介 | 日本語 |
 | [e-Stat](https://www.e-stat.go.jp/) | 政府統計の紹介 | 日本語 |
 | [コトバンク](https://kotobank.jp/) | 辞書・事典の検索 | 日本語 |
 | [ニコニコ大百科](https://dic.nicovideo.jp/) | ランダムな記事 | 日本語 |
@@ -42,6 +43,8 @@ Claude Code が作業している待ち時間に、入力欄の上へランダ�
 | [青空文庫](https://www.aozora.gr.jp/) / [Open Library](https://openlibrary.org/) | 本との出会い | 日本語 / 英語 |
 
 e-Stat・コトバンク・ピクシブ百科事典・青空文庫の要約には、その語の Wikipedia の要約を添えています。
+
+日文研の資料は、ジャパンサーチで CC BY-SA として公開されているもの（宗田文庫図版資料・ちりめん本・平安京都名所図会・在外日本美術・日本関係欧文図書目録）だけを、出典付きで表示します。それ以外のデータベースは中身を取り込まず、この mod の作者が書いた紹介文と、日文研のページへのリンクだけを表示します。
 
 ## インストール
 
@@ -108,6 +111,7 @@ claude plugin install machi-yomi@machi-yomi
 - Wikipedia の記事は [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/deed.ja) で提供されています。要約はリンク先の記事からの引用です。
 - Thank you to arXiv for use of its open access interoperability.
 - 論文情報は [OpenAlex](https://openalex.org/)（CC0）を使っています。
+- 日文研の資料：出典 国際日本文化研究センター（各データベース名は表示中に明記）。[ジャパンサーチ](https://jpsearch.go.jp/)経由で CC BY-SA 4.0 のものを使っています。
 - 各サイトの名称・商標は、それぞれの権利者に帰属します。この mod は各サイトの公式のものではありません。
 
 ## 開発

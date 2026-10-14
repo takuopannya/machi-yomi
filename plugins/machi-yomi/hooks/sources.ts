@@ -4,6 +4,7 @@ import type { MachiYomiItem } from '../types'
 import { BOOK_EVERY, bookTopic } from './books'
 import { needsMore } from './layout'
 import { foreignCompany, japaneseCompany, wikipediaEn, wikipediaJa } from './companies'
+import { nichibun, nichibunCard } from './nichibun'
 import { arxiv, openAlex } from './papers'
 
 export type { Fetch, Random } from './common'
@@ -137,34 +138,46 @@ const zenn: Source = {
 
 export const SOURCES: readonly Source[] = [
   wikipediaJa, wikipediaEn, japanSearch, estat, kotobank, nicopedia, pixiv, qiita, zenn,
-  arxiv, openAlex, japaneseCompany, foreignCompany,
+  arxiv, openAlex, japaneseCompany, foreignCompany, nichibun,
 ]
 
 /** API のいらない、必ず成功する予備 */
-const OFFLINE: readonly Source[] = [estat, kotobank, pixiv]
+const OFFLINE: readonly Source[] = [estat, kotobank, pixiv, nichibunCard]
 
-/** ランダムなサイトの記事を 1 件。used のサイトはなるべく避ける */
-export async function nextTopic(fetch: Fetch, random: Random = Math.random, used: readonly string[] = []): Promise<MachiYomiItem> {
+type Picked = { item: MachiYomiItem; source: string }
+
+/** ランダムなサイトの記事を 1 件と、取った情報源の名前。used の情報源はなるべく避ける */
+async function pickTopic(fetch: Fetch, random: Random, used: readonly string[]): Promise<Picked> {
   const fresh = SOURCES.filter(one => !used.includes(one.site))
   const source = pick(fresh.length > 0 ? fresh : SOURCES, random)
   try {
-    return await source.load(fetch, random)
+    return { item: await source.load(fetch, random), source: source.site }
   } catch {
     const spare = OFFLINE.filter(one => one !== source && !used.includes(one.site))
-    return pick(spare.length > 0 ? spare : OFFLINE, random).load(fetch, random)
+    const backup = pick(spare.length > 0 ? spare : OFFLINE, random)
+    return { item: await backup.load(fetch, random), source: backup.site }
   }
+}
+
+/** ランダムなサイトの記事を 1 件 */
+export async function nextTopic(fetch: Fetch, random: Random = Math.random): Promise<MachiYomiItem> {
+  return (await pickTopic(fetch, random, [])).item
 }
 
 /** n 回目（1 始まり）の 1 件目：BOOK_EVERY 回ごとに本との出会い、それ以外はランダムなサイト */
-export async function nextItem(n: number, fetch: Fetch, random: Random = Math.random): Promise<MachiYomiItem> {
-  return n % BOOK_EVERY === 0 ? bookTopic(fetch, random) : nextTopic(fetch, random)
+async function firstTopic(n: number, fetch: Fetch, random: Random): Promise<Picked> {
+  return n % BOOK_EVERY === 0 ? { item: await bookTopic(fetch, random), source: '本' } : pickTopic(fetch, random, [])
 }
 
-/** n 回目の表示ぶん：要約が MIN_LINES 行に届くまでトピックを足す（幅 cells で数える） */
+export async function nextItem(n: number, fetch: Fetch, random: Random = Math.random): Promise<MachiYomiItem> {
+  return (await firstTopic(n, fetch, random)).item
+}
+
+/** n 回目の表示ぶん：要約が MIN_LINES 行に届くまで、別の情報源からトピックを足す（幅 cells で数える） */
 export async function nextBatch(n: number, fetch: Fetch, cells: number, random: Random = Math.random): Promise<MachiYomiItem[]> {
-  const items = [await nextItem(n, fetch, random)]
-  while (needsMore(items, cells)) {
-    items.push(await nextTopic(fetch, random, items.map(one => one.site)))
+  const picked = [await firstTopic(n, fetch, random)]
+  while (needsMore(picked.map(one => one.item), cells)) {
+    picked.push(await pickTopic(fetch, random, picked.map(one => one.source)))
   }
-  return items
+  return picked.map(one => one.item)
 }

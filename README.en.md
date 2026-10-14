@@ -14,7 +14,7 @@ The interface and most sources are in Japanese. English sources (English Wikiped
 
 ## Sources
 
-Wikipedia (Japanese and English), Japanese companies (TSE-listed, from Japanese Wikipedia), international companies (NYSE, Nasdaq, LSE, Euronext Paris, Frankfurt, Hong Kong, Korea, Bombay; from English Wikipedia), Japan Search, e-Stat, Kotobank, Nicopedia, pixiv Encyclopedia, Qiita, Zenn, arXiv (22 categories), OpenAlex, Aozora Bunko, Open Library.
+Wikipedia (Japanese and English), Japanese companies (TSE-listed, from Japanese Wikipedia), international companies (NYSE, Nasdaq, LSE, Euronext Paris, Frankfurt, Hong Kong, Korea, Bombay; from English Wikipedia), Japan Search, International Research Center for Japanese Studies (Nichibun: CC BY-SA items via Japan Search, plus database introductions), e-Stat, Kotobank, Nicopedia, pixiv Encyclopedia, Qiita, Zenn, arXiv (22 categories), OpenAlex, Aozora Bunko, Open Library.
 
 ## Install
 
@@ -65,6 +65,7 @@ This mod contains no ads or affiliate links.
 - Wikipedia content is available under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
 - Thank you to arXiv for use of its open access interoperability.
 - Paper metadata from [OpenAlex](https://openalex.org/) (CC0).
+- Nichibun items: source International Research Center for Japanese Studies (database names shown in each item), CC BY-SA 4.0 via [Japan Search](https://jpsearch.go.jp/). Other Nichibun databases are only introduced and linked.
 - All site names and trademarks belong to their owners. This mod is not affiliated with any of them.
 
 ## Support

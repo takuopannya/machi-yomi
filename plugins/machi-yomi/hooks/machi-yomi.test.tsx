@@ -4,6 +4,7 @@ import type { HttpResponse } from 'claude-code'
 import { addEntry, toMarkdown } from './history'
 import { MAX_TOPICS, MIN_LINES, summaryLines } from './layout'
 import { foreignCompany, japaneseCompany } from './companies'
+import { nichibun, nichibunCard } from './nichibun'
 import { abstractOf } from './papers'
 import { SOURCES, nextBatch, nextItem } from './sources'
 import type { Fetch } from './sources'
@@ -62,7 +63,7 @@ test('要約が 5 行に届かなければトピックを足し、届けば 1 �
   expect(short.length).toBeGreaterThan(1)
   expect(short.length).toBeLessThanOrEqual(MAX_TOPICS)
   expect(summaryLines(short, 70) >= MIN_LINES || short.length === MAX_TOPICS).toBe(true)
-  expect(new Set(short.map(one => one.site)).size).toBe(Math.min(short.length, 3))
+  expect(new Set(short.map(one => one.site)).size).toBe(Math.min(short.length, 4))
 
   // 長い要約なら 1 件で足りる
   const long = 'あ'.repeat(300)
@@ -89,6 +90,27 @@ test('企業はカテゴリから 1 社選び、日本は日本語・海外は�
   expect(en.site).toBe('海外の企業（NYSE）')
   expect(en.lang).toBe('en')
   expect(en.url).toBe('https://en.wikipedia.org/wiki/X')
+})
+
+test('日文研：ジャパンサーチの CC BY-SA 資料は出典付き、それ以外は紹介とリンクだけ', async () => {
+  const urls: string[] = []
+  const jps: Fetch = async url => {
+    urls.push(url)
+    return ok({ list: [{ common: { id: 'irc02-x', title: '[タイトル]桃太郎', contributor: ['[作者]長谷川武次郎'], linkUrl: 'https://bridge.nihu.jp/integrated_searchresults_detail/1' } }] })
+  }
+  const shown = await nichibun.load(jps, () => 0.2)
+  expect(urls[0]).toContain('jpsearch.go.jp/api/item/search/jps-cross?f-db=irc')
+  expect(shown.title).toBe('桃太郎')
+  expect(shown.site.startsWith('日文研 ')).toBe(true)
+  expect(shown.summary).toContain('出典：国際日本文化研究センター')
+  expect(shown.summary).toContain('CC BY-SA')
+  expect(shown.url).toBe('https://bridge.nihu.jp/integrated_searchresults_detail/1')
+
+  // 紹介カードはネットを使わず、日文研のページへのリンクだけ
+  const card = await nichibunCard.load(failing, () => 0)
+  expect(card.site).toBe('日文研 データベース紹介')
+  expect(card.title).toBe('怪異・妖怪伝承データベース')
+  expect(card.url).toBe('https://www.nichibun.ac.jp/ja/db/category/yokai/')
 })
 
 test('OpenAlex の転置インデックスを文章に戻す', () => {

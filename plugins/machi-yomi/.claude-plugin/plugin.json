@@ -1,6 +1,6 @@
 {
   "name": "machi-yomi",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Claude が作業している間、入力欄の上に Wikipedia・論文（arXiv / OpenAlex）・統計・辞書・技術記事・青空文庫などのランダムな記事を切り替えて表示する「知のセレンディピティ」mod",
   "author": {
     "name": "takuopannya",
