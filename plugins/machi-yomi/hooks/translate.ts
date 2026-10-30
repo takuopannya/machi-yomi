@@ -25,7 +25,7 @@ export function readConfig(options: Readonly<Record<string, unknown>>): Translat
     const value = options[key]
     return typeof value === 'string' && value.trim() !== '' ? value.trim() : fallback
   }
-  const translator = text('translator', 'none')
+  const translator = text('translator', 'claude')
   return {
     translator: (['none', 'claude', 'deepl', 'ollama'] as const).find(one => one === translator) ?? 'none',
     claudeModel: text('claudeModel', 'haiku'),

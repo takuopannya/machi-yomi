@@ -2,7 +2,7 @@
 
 **日本語** · [English](README.en.md)
 
-Claude Code が作業している待ち時間に、入力欄の上へランダムな記事を表示する mod です。Wikipedia（日本語・英語）、国内外の企業、海外の論文、統計、辞書、技術記事、青空文庫など、ふだん自分からは開かないページとの「知のセレンディピティ」を届けます。
+Claude Code が作業している待ち時間に、入力欄の上へランダムな記事を表示する mod です。Wikipedia（日本語・英語）、国内外の企業、海外の論文、統計、辞書、技術記事、青空文庫、世界の美術館の絵画（画像付き）など、ふだん自分からは開かないページとの「知のセレンディピティ」を届けます。
 
 ```
 ╭──────────────────────────────────────────────╮
@@ -41,8 +41,11 @@ Claude Code が作業している待ち時間に、入力欄の上へランダ�
 | [arXiv](https://arxiv.org/) | 22分野の新しめの論文 | 英語 |
 | [OpenAlex](https://openalex.org/) | 全分野の論文 | 英語 |
 | [青空文庫](https://www.aozora.gr.jp/) / [Open Library](https://openlibrary.org/) | 本との出会い | 日本語 / 英語 |
+| 絵画（画像付き） | 次の4つから1つ：[Wikimedia Commons](https://commons.wikimedia.org/) の秀逸な画像の絵画（CC ライセンス・パブリックドメイン）、[SMK デンマーク国立美術館](https://open.smk.dk/)（パブリックドメイン）、[アムステルダム国立美術館](https://www.rijksmuseum.nl/)（パブリックドメイン）、[ジャパンサーチ](https://jpsearch.go.jp/)経由の国立博物館などの絵画（CC BY） | 日本語 / 英語ほか |
 
 e-Stat・コトバンク・ピクシブ百科事典・青空文庫の要約には、その語の Wikipedia の要約を添えています。
+
+絵画は、クリエイティブ・コモンズかパブリックドメインで公開されているものだけを、サイト名にライセンスを付けて表示します。画像は幅240px の縮小版を `~/.claude/machi-yomi/art/` に取り込みます（大きいものは Windows では PowerShell、macOS では sips、ほかは ImageMagick で縮めます）。デスクトップアプリでは帯の中に表示し、ターミナルでは画像を表示できる端末（kitty・Ghostty）だけで表示して、それ以外では題名の文字に代えます。
 
 日文研の資料は、ジャパンサーチで CC BY-SA として公開されているもの（宗田文庫図版資料・ちりめん本・平安京都名所図会・在外日本美術・日本関係欧文図書目録）だけを、出典付きで表示します。それ以外のデータベースは中身を取り込まず、この mod の作者が書いた紹介文と、日文研のページへのリンクだけを表示します。
 
@@ -79,12 +82,12 @@ claude plugin install machi-yomi@machi-yomi
 | 項目 | 初期値 | 内容 |
 |---|---|---|
 | 切り替え間隔（秒） | 30 | 5〜600秒 |
-| 英語の記事の翻訳 | `none` | `none`：英語のまま ／ `claude`：自分の Claude で訳す ／ `deepl`：DeepL API ／ `ollama`：ローカル LLM |
+| 英語の記事の翻訳 | `claude` | `none`：英語のまま ／ `claude`：自分の Claude で訳す ／ `deepl`：DeepL API ／ `ollama`：ローカル LLM |
 | 翻訳に使う Claude のモデル | `haiku` | `claude` を選んだとき |
 | DeepL API キー | （空） | `deepl` を選んだとき。Free プランのキーも使えます。安全な保存場所に保存されます |
 | Ollama の URL / モデル | `http://localhost:11434` / `qwen2.5:7b` | `ollama` を選んだとき |
 
-- 英語の記事（Wikipedia 英語版・海外の企業・論文・Open Library）が翻訳の対象です。
+- 英語などの記事（Wikipedia 英語版・海外の企業・論文・Open Library・海外の絵画）が翻訳の対象です。
 - `claude` を選ぶと、英語の記事1件ごとに、あなたの Claude のトークンを少し使います。
 - 翻訳に失敗したときは、英語のまま表示します。
 - 自動翻訳した記事には、サイト名に「・訳」が付きます。
@@ -92,7 +95,7 @@ claude plugin install machi-yomi@machi-yomi
 ## プライバシーと通信
 
 - 記事を取得するため、上の表の各サイトの API・ページにアクセスします。
-- 翻訳を有効にすると、英語の記事のタイトルと要約を、選んだ翻訳先（Claude / DeepL / Ollama）に送ります。
+- 翻訳が有効なとき（初期設定）は、英語の記事のタイトルと要約を、選んだ翻訳先（Claude / DeepL / Ollama）に送ります。
 - あなたのプロンプトやコード、会話の内容は、どこにも送りません。
 - 履歴はあなたのパソコンの中（`~/.claude/machi-yomi/history.md` と Claude Code のプラグイン用ストア）にだけ保存します。
 
@@ -112,6 +115,7 @@ claude plugin install machi-yomi@machi-yomi
 - Thank you to arXiv for use of its open access interoperability.
 - 論文情報は [OpenAlex](https://openalex.org/)（CC0）を使っています。
 - 日文研の資料：出典 国際日本文化研究センター（各データベース名は表示中に明記）。[ジャパンサーチ](https://jpsearch.go.jp/)経由で CC BY-SA 4.0 のものを使っています。
+- 絵画の画像と解説は、それぞれ表示中のライセンス（CC BY・CC BY-SA・CC0・パブリックドメインなど）に従い、作者・所蔵館・出典ページへのリンクを添えて表示します。出典：Wikimedia Commons の各ファイルの作者、Statens Museum for Kunst、Rijksmuseum、ジャパンサーチ（各所蔵館、主に ColBase：国立文化財機構）。
 - 各サイトの名称・商標は、それぞれの権利者に帰属します。この mod は各サイトの公式のものではありません。
 
 ## 開発

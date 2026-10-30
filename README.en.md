@@ -10,11 +10,11 @@ A Claude Code mod that shows random articles above the prompt while Claude is wo
 - Every 10th round is a "book encounter" (a classic from Aozora Bunko or a book from Open Library).
 - Shown articles are saved to a history file (`~/.claude/machi-yomi/history.md`).
 
-The interface and most sources are in Japanese. English sources (English Wikipedia, international companies, arXiv, OpenAlex, Open Library) can be shown as-is or translated into Japanese.
+The interface and most sources are in Japanese. English sources (English Wikipedia, international companies, arXiv, OpenAlex, Open Library) are translated into Japanese by default (or shown as-is).
 
 ## Sources
 
-Wikipedia (Japanese and English), Japanese companies (TSE-listed, from Japanese Wikipedia), international companies (NYSE, Nasdaq, LSE, Euronext Paris, Frankfurt, Hong Kong, Korea, Bombay; from English Wikipedia), Japan Search, International Research Center for Japanese Studies (Nichibun: CC BY-SA items via Japan Search, plus database introductions), e-Stat, Kotobank, Nicopedia, pixiv Encyclopedia, Qiita, Zenn, arXiv (22 categories), OpenAlex, Aozora Bunko, Open Library.
+Wikipedia (Japanese and English), Japanese companies (TSE-listed, from Japanese Wikipedia), international companies (NYSE, Nasdaq, LSE, Euronext Paris, Frankfurt, Hong Kong, Korea, Bombay; from English Wikipedia), Japan Search, International Research Center for Japanese Studies (Nichibun: CC BY-SA items via Japan Search, plus database introductions), e-Stat, Kotobank, Nicopedia, pixiv Encyclopedia, Qiita, Zenn, arXiv (22 categories), OpenAlex, Aozora Bunko, Open Library, and paintings with images from Wikimedia Commons featured pictures (Creative Commons / public domain), SMK National Gallery of Denmark (public domain), Rijksmuseum (public domain) and Japanese national museums via Japan Search (CC BY). Paintings are shown only under open licenses, with the license next to the site name. Images are drawn in the desktop app, and in terminals that can show images (kitty, Ghostty); elsewhere the title is shown instead.
 
 ## Install
 
@@ -36,7 +36,7 @@ Inside Claude Code:
 | Setting | Default | |
 |---|---|---|
 | intervalSeconds | 30 | 5 to 600 |
-| translator | `none` | `none` / `claude` (uses your own Claude tokens) / `deepl` (your API key) / `ollama` (local LLM) |
+| translator | `claude` | `none` / `claude` (uses your own Claude tokens) / `deepl` (your API key) / `ollama` (local LLM) |
 | claudeModel | `haiku` | used with `claude` |
 | deeplApiKey | (empty) | used with `deepl`; stored in secure storage |
 | ollamaUrl / ollamaModel | `http://localhost:11434` / `qwen2.5:7b` | used with `ollama` |
@@ -46,7 +46,7 @@ If translation fails, the original English is shown.
 ## Privacy
 
 - The mod fetches articles from the sites listed above.
-- With translation on, the title and summary of English articles are sent to the translator you chose.
+- With translation on (the default), the title and summary of English articles are sent to the translator you chose.
 - Your prompts, code and conversation are never sent anywhere.
 - History is stored only on your machine.
 
@@ -66,6 +66,7 @@ This mod contains no ads or affiliate links.
 - Thank you to arXiv for use of its open access interoperability.
 - Paper metadata from [OpenAlex](https://openalex.org/) (CC0).
 - Nichibun items: source International Research Center for Japanese Studies (database names shown in each item), CC BY-SA 4.0 via [Japan Search](https://jpsearch.go.jp/). Other Nichibun databases are only introduced and linked.
+- Painting images and descriptions follow the license shown with each (CC BY, CC BY-SA, CC0, public domain, ...), with the artist, holding institution and a link to the source page: Wikimedia Commons file authors, Statens Museum for Kunst, Rijksmuseum, Japan Search (each holding institution, mainly ColBase / National Institutes for Cultural Heritage).
 - All site names and trademarks belong to their owners. This mod is not affiliated with any of them.
 
 ## Support

@@ -6,6 +6,7 @@ import { needsMore } from './layout'
 import { foreignCompany, japaneseCompany, wikipediaEn, wikipediaJa } from './companies'
 import { nichibun, nichibunCard } from './nichibun'
 import { arxiv, openAlex } from './papers'
+import { painting } from './museums'
 
 export type { Fetch, Random } from './common'
 
@@ -138,7 +139,7 @@ const zenn: Source = {
 
 export const SOURCES: readonly Source[] = [
   wikipediaJa, wikipediaEn, japanSearch, estat, kotobank, nicopedia, pixiv, qiita, zenn,
-  arxiv, openAlex, japaneseCompany, foreignCompany, nichibun,
+  arxiv, openAlex, japaneseCompany, foreignCompany, nichibun, painting,
 ]
 
 /** API のいらない、必ず成功する予備 */

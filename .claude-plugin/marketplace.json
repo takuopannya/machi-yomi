@@ -11,7 +11,7 @@
     {
       "name": "machi-yomi",
       "source": "./plugins/machi-yomi",
-      "description": "Claude が作業している間、入力欄の上に Wikipedia・論文・統計・辞書・技術記事・青空文庫などのランダムな記事を表示する"
+      "description": "Claude が作業している間、入力欄の上に Wikipedia・論文・統計・辞書・技術記事・青空文庫・世界の美術館の絵画（画像付き）などのランダムな記事を表示する"
     }
   ]
 }

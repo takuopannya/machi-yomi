@@ -1,7 +1,9 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { MachiYomiHistoryEntry, MachiYomiItem } from '../types'
+import type { MachiYomiHistoryEntry, MachiYomiImage, MachiYomiItem } from '../types'
+import { MAX_WIDTH, THUMB_WIDTH, imageCells, imageSize, pictureSvg } from './art'
+import { HEADERS } from './common'
 import { addEntry, jst, toMarkdown } from './history'
 import { MULTI_LINES, SINGLE_LINES, fit, width } from './layout'
 import { nextBatch } from './sources'
@@ -21,11 +23,92 @@ let isLoading = false
 let lastCells = 74
 /** 英語の記事の翻訳設定（register で読む） */
 let translateConfig: TranslateConfig = readConfig({})
+/** 最後に帯を描いた画面の種類（端末なら画像を PNG にもする） */
+let lastSurface = 'terminal'
+
+/** 取り込んだ画像（縮小版の URL ごと）：画面にそのまま埋め込む画像と、端末用の PNG。どちらも base64 */
+type Picture = { data: string; width: number; height: number; png?: string }
+const pictures = new Map<string, Picture>()
+
+/** ~/.claude/machi-yomi の場所 */
+async function dataDir($: EngineInterface): Promise<string | undefined> {
+  const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME'))
+  return home ? `${home.replace(/[\\/]+$/, '')}/.claude/machi-yomi` : undefined
+}
 
 /** 履歴ファイルの場所（~/.claude/machi-yomi/history.md） */
 async function historyPath($: EngineInterface): Promise<string | undefined> {
-  const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME'))
-  return home ? `${home.replace(/[\\/]+$/, '')}/.claude/machi-yomi/history.md` : undefined
+  const dir = await dataDir($)
+  return dir ? `${dir}/history.md` : undefined
+}
+
+/**
+ * 画像を別の形式・幅で書き出す（Windows は PowerShell、それ以外は sips か ImageMagick）。できなければ false。
+ * width を省くと元の大きさのまま
+ */
+async function convert($: EngineInterface, from: string, to: string, format: 'png' | 'jpeg', width?: number): Promise<boolean> {
+  const quote = (path: string) => `'${path.replace(/'/g, "''")}'`
+  const fmt = format === 'png' ? 'Png' : 'Jpeg'
+  const commands =
+    (await $.env.get('OS')) === 'Windows_NT'
+      ? [[
+          'powershell', '-NoProfile', '-NonInteractive', '-Command',
+          [
+            'Add-Type -AssemblyName System.Drawing',
+            `$s = [System.Drawing.Image]::FromFile(${quote(from)})`,
+            `$w = ${width ?? '$s.Width'}`,
+            '$h = [int][math]::Max(1, [math]::Round($s.Height * $w / $s.Width))',
+            '$b = New-Object System.Drawing.Bitmap $s, $w, $h',
+            `$b.Save(${quote(to)}, [System.Drawing.Imaging.ImageFormat]::${fmt})`,
+            '$b.Dispose(); $s.Dispose()',
+          ].join('; '),
+        ]]
+      : [
+          ['sips', '-s', 'format', format, ...(width ? ['--resampleWidth', String(width)] : []), from, '--out', to],
+          ['magick', from, ...(width ? ['-resize', `${width}x`] : []), to],
+        ]
+  for (const argv of commands) {
+    try {
+      if ((await $.process.run(argv, { timeoutMs: 20_000 })).exitCode === 0) return true
+    } catch {
+      // そのコマンドがない：次を試す
+    }
+  }
+  return false
+}
+
+/** 画像の縮小版を取り込む（$.http は本文を文字で返すので、バイト列は curl で落とす）。大きすぎれば縮める */
+async function loadPicture($: EngineInterface, image: MachiYomiImage): Promise<Picture | undefined> {
+  const dir = await dataDir($)
+  if (!dir) return undefined
+  const raw = `${dir}/art/current.img`
+  try {
+    const got = await $.process.run(
+      ['curl', '-sSfL', '--max-time', '20', '--create-dirs', '-A', HEADERS['user-agent'], '-o', raw, image.url],
+      { timeoutMs: 30_000 },
+    )
+    if (got.exitCode !== 0) return undefined
+    let path = raw
+    let data = (await $.fs.read(raw, { as: 'bytes' })).base64
+    let size = imageSize(data)
+    if (!size) return undefined
+    if (size.width > MAX_WIDTH || !pictureSvg(data)) {
+      path = `${dir}/art/small.jpg`
+      if (!(await convert($, raw, path, 'jpeg', THUMB_WIDTH))) return undefined
+      data = (await $.fs.read(path, { as: 'bytes' })).base64
+      size = imageSize(data)
+      if (!size || !pictureSvg(data)) return undefined
+    }
+    const picture: Picture = { data, width: size.width, height: size.height }
+    if (lastSurface === 'terminal') {
+      const png = `${dir}/art/current.png`
+      if (size.type === 'png') picture.png = data
+      else if (await convert($, path, png, 'png')) picture.png = (await $.fs.read(png, { as: 'bytes' })).base64
+    }
+    return picture
+  } catch {
+    return undefined
+  }
 }
 
 async function loadHistory($: EngineInterface): Promise<MachiYomiHistoryEntry[]> {
@@ -57,6 +140,13 @@ async function advance($: EngineInterface) {
     }
     const batch = await nextBatch(n, fetch, lastCells)
     const shown = await Promise.all(batch.map(one => translateItem(one, translateConfig, { fetch, complete })))
+    // 画像は前のものを捨ててから、今回のぶんだけ順に取り込む（同じファイルを使い回すので並べない）
+    pictures.clear()
+    for (const one of shown) {
+      if (!one.image) continue
+      const picture = await loadPicture($, one.image)
+      if (picture) pictures.set(one.image.url, picture)
+    }
     await update($, count, () => n)
     await update($, current, () => shown)
     await recordHistory($, shown)
@@ -121,13 +211,31 @@ export const register: Register = (on, options) => {
     }
     const shown = await read($, current)
     const n = await read($, count)
-    const { Box, Text, Link, Button } = $.ui.resolve(e)
+    const elements = $.ui.resolve(e)
+    const { Box, Text, Link, Button } = elements
+    lastSurface = e.surface
 
     // 見出し・トピックごとにタイトルと要約・リンク。要約が 5 行に届かなければ複数並ぶ
     const cells = Math.max(20, e.props.bodyColumns - 6)
     lastCells = cells
     const accent = shown.some(one => one.isAd) ? 'yellow' : 'cyan'
     const lines = shown.length > 1 ? MULTI_LINES : SINGLE_LINES
+
+    /** その記事の画像：端末は Image（PNG）、ほかの画面は画像を埋め込んだ Svg。出せなければ undefined */
+    const picture = (one: MachiYomiItem) => {
+      const got = one.image && pictures.get(one.image.url)
+      if (!got) return undefined
+      const alt = `絵：${one.title}`
+      if ('Image' in elements) {
+        if (!got.png) return undefined
+        const size = imageCells(got.width, got.height)
+        return { columns: size.columns, node: <elements.Image key={`art-${n}`} source={{ png: got.png }} columns={size.columns} rows={size.rows} alt={alt} /> }
+      }
+      if (!('Svg' in elements)) return undefined
+      const svg = pictureSvg(got.data)
+      const height = 120
+      return svg ? { columns: 0, node: <elements.Svg source={svg} alt={alt} width={Math.round((got.width * height) / got.height)} height={height} /> } : undefined
+    }
 
     return (
       <Box flexDirection="column" borderStyle="round" borderColor={accent} paddingX={2}>
@@ -138,17 +246,25 @@ export const register: Register = (on, options) => {
           <Text dimColor>{shown.length === 0 ? '' : `#${n}`}</Text>
         </Box>
         {shown.length === 0 && <Text dimColor>読み込み中…</Text>}
-        {shown.map((one, i) => (
-          <Box flexDirection="column" marginTop={i === 0 ? 0 : 1}>
-            <Box columnGap={1}>
-              <Text color={one.isAd ? 'yellow' : 'cyan'} dimColor>
-                {label(one)}
-              </Text>
-              <Link href={one.url} label={fit(one.title, Math.max(10, cells - width(label(one)) - 6))} />
+        {shown.map((one, i) => {
+          const pic = picture(one)
+          // 画像の横に並べるぶん、文字の幅を詰める
+          const room = pic ? Math.max(20, cells - pic.columns - 2) : cells
+          return (
+            <Box marginTop={i === 0 ? 0 : 1} columnGap={2}>
+              {pic?.node}
+              <Box flexDirection="column" flexShrink={1}>
+                <Box columnGap={1}>
+                  <Text color={one.isAd ? 'yellow' : 'cyan'} dimColor>
+                    {label(one)}
+                  </Text>
+                  <Link href={one.url} label={fit(one.title, Math.max(10, room - width(label(one)) - 6))} />
+                </Box>
+                {one.summary !== '' && <Text wrap="wrap">{fit(one.summary, room * lines)}</Text>}
+              </Box>
             </Box>
-            {one.summary !== '' && <Text wrap="wrap">{fit(one.summary, cells * lines)}</Text>}
-          </Box>
-        ))}
+          )
+        })}
         <Box columnGap={1} marginTop={1}>
           <Button key="next" label="次へ" dimColor onPress={() => void advance($)} />
           <Button key="history" label="履歴" dimColor onPress={() => $.ui.open({ id: HISTORY_PANE, title: '待ち読み 履歴' })} />

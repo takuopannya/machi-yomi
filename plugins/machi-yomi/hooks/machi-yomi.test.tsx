@@ -1,6 +1,8 @@
 import { expect, test } from 'claude-code/testing'
 import type { HttpResponse } from 'claude-code'
 
+import { SVG_LIMIT, cleanMeta, commonsPainting, imageCells, imageSize, isOpenLicense, paintingItem, pictureSvg } from './art'
+import { MUSEUMS, japanSearchItem, painting, rijksItem, smkImage, smkPainting } from './museums'
 import { addEntry, toMarkdown } from './history'
 import { MAX_TOPICS, MIN_LINES, summaryLines } from './layout'
 import { foreignCompany, japaneseCompany } from './companies'
@@ -135,7 +137,11 @@ test('翻訳：設定どおりに訳し、失敗や対象外は元のまま', as
   const complete = async () => '```json\n{"title": "猫", "summary": "猫は素晴らしい。"}\n```'
   const deps = { fetch: failing, complete }
 
-  expect(await translateItem(en, readConfig({}), deps)).toEqual(en)
+  expect(await translateItem(en, readConfig({ translator: 'none' }), deps)).toEqual(en)
+  // 何も設定していなければ Claude で訳す
+  expect(readConfig({}).translator).toBe('claude')
+  expect(await translateItem(en, readConfig({}), deps)).toEqual({ ...en, title: '猫', summary: '猫は素晴らしい。', isTranslated: true })
+  expect(await translateItem(ja, readConfig({}), deps)).toEqual(ja)
   const viaClaude = await translateItem(en, readConfig({ translator: 'claude' }), deps)
   expect(viaClaude).toEqual({ ...en, title: '猫', summary: '猫は素晴らしい。', isTranslated: true })
   expect(await translateItem(ja, readConfig({ translator: 'claude' }), deps)).toEqual(ja)
@@ -197,4 +203,156 @@ test('帯は作業中だけ表示する', async ($, on) => {
     expect(await working.find({ text: /セレンディピティ/ })).toBeDefined()
     await working.unmount()
   }
+})
+
+test('Commons の絵画：CC・パブリックドメインの JPEG だけを、縮小画像付きで出す', async () => {
+  const page = (license: string, mime = 'image/jpeg') => ({
+    title: 'File:Water Lilies - Monet.jpg',
+    imageinfo: [{
+      mime,
+      thumburl: 'https://upload.wikimedia.org/thumb/a/ab/Water_Lilies.jpg/240px-Water_Lilies.jpg',
+      thumbwidth: 240,
+      thumbheight: 180,
+      descriptionurl: 'https://commons.wikimedia.org/wiki/File:Water_Lilies_-_Monet.jpg',
+      extmetadata: {
+        ObjectName: { value: 'Water Lilies' },
+        Artist: { value: '<a href="x">Claude Monet</a>' },
+        DateTimeOriginal: { value: '1906' },
+        LicenseShortName: { value: license },
+        ImageDescription: { value: 'Oil on canvas.' },
+      },
+    }],
+  })
+  const shown = paintingItem(page('Public domain'))
+  expect(shown).toEqual({
+    site: 'Commons 絵画・Public domain',
+    title: 'Water Lilies',
+    summary: 'Claude Monet / 1906 ／ Oil on canvas.',
+    url: 'https://commons.wikimedia.org/wiki/File:Water_Lilies_-_Monet.jpg',
+    isAd: false,
+    lang: 'en',
+    image: { url: 'https://upload.wikimedia.org/thumb/a/ab/Water_Lilies.jpg/240px-Water_Lilies.jpg', width: 240, height: 180 },
+  })
+  expect(paintingItem(page('CC BY-SA 4.0'))?.site).toBe('Commons 絵画・CC BY-SA 4.0')
+  expect(paintingItem(page('All rights reserved'))).toBeUndefined()
+  expect(paintingItem(page('Public domain', 'image/tiff'))).toBeUndefined()
+  expect(isOpenLicense('CC0')).toBe(true)
+  expect(isOpenLicense('Copyrighted')).toBe(false)
+
+  // カテゴリ一覧 → そのカテゴリの絵、の順に API を引く
+  const urls: string[] = []
+  const fetch: Fetch = async url => {
+    urls.push(url)
+    return url.includes('list=categorymembers')
+      ? ok({ query: { categorymembers: [{ title: 'Category:Featured pictures of paintings from Japan' }] } })
+      : ok({ query: { pages: [page('Public domain')] } })
+  }
+  const loaded = await commonsPainting.load(fetch, () => 0)
+  expect(loaded.image?.width).toBe(240)
+  expect(urls[1]).toContain('gcmtitle=Category%3AFeatured%20pictures%20of%20paintings%20from%20Japan')
+  expect(urls[1]).toContain('iiurlwidth=240')
+})
+
+test('画像の大きさ：端末のマスに収め、SVG は上限を超えたら出さない', () => {
+  expect(imageCells(240, 180)).toEqual({ columns: 21, rows: 8 })
+  expect(imageCells(2000, 100).columns).toBe(32)
+  // 240×180 の JPEG の頭（APP0 のあとに SOF0）と、120×90 の PNG の頭
+  const bytes = (list: number[]) => btoa(String.fromCharCode(...list))
+  const jpeg = bytes([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x04, 0x4a, 0x46, 0xff, 0xc0, 0x00, 0x11, 0x08, 0x00, 0xb4, 0x00, 0xf0, 0x03, 0, 0, 0, 0])
+  const png = bytes([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, 0, 0, 0, 120, 0, 0, 0, 90])
+  expect(imageSize(jpeg)).toEqual({ type: 'jpeg', width: 240, height: 180 })
+  expect(imageSize(png)).toEqual({ type: 'png', width: 120, height: 90 })
+  expect(imageSize(btoa('GIF89a'))).toBeUndefined()
+  expect(pictureSvg(jpeg)).toContain(`href="data:image/jpeg;base64,${jpeg}"`)
+  expect(pictureSvg(png)).toContain('width="120" height="90"')
+  expect(pictureSvg(jpeg + 'A'.repeat(SVG_LIMIT))).toBeUndefined()
+})
+
+test('Commons のメタデータから隠しデータ・翻訳リンク・言語名を除く', () => {
+  expect(cleanMeta('1920年頃<div style="display: none;">date QS:P571,+1920-00-00T00:00:00Z/9</div>')).toBe('1920年頃')
+  expect(cleanMeta('<div class="fn"><div style="display:inline-block;">Portrait <small class="plainlinks"><a href="x">翻訳</a></small><div style="display: none;">label QS:Les,"Retrato"</div></div></div>')).toBe('Portrait')
+  expect(cleanMeta('ポーランド語: <i>Pożegnanie&nbsp;<span class="mw-valign-text-top noprint"><a href="y"><img alt="編集" /></a></span></i>『見納め』title QS:P1476,pl:"Pożegnanie "label QS:Lpl,"Pożegnanie "')).toBe('Pożegnanie 『見納め』')
+})
+
+test('SMK（デンマーク）：パブリックドメインの絵画を IIIF の縮小画像で出す', async () => {
+  let asked = ''
+  const fetch: Fetch = async url => {
+    asked = url
+    return ok({
+      found: 4637,
+      items: [{
+        titles: [{ title: 'Udsigt', language: 'dansk' }, { title: 'View of the Sea', language: 'engelsk' }],
+        production: [{ creator: 'Eckersberg, C.W.', creator_forename: 'C.W.', creator_surname: 'Eckersberg' }],
+        production_date: [{ period: '1830' }],
+        image_iiif_id: 'https://iip.smk.dk/iiif/jp2/abc.tif.jp2',
+        frontend_url: 'https://open.smk.dk/artwork/image/KMS1',
+      }],
+    })
+  }
+  const shown = await smkPainting.load(fetch, () => 0)
+  expect(asked).toContain('object_names:Painting')
+  expect(asked).toContain('public_domain:true')
+  expect(shown.title).toBe('View of the Sea')
+  expect(shown.summary.startsWith('C.W. Eckersberg / 1830')).toBe(true)
+  expect(shown.lang).toBe('en')
+  expect(shown.image?.url).toBe('https://iip.smk.dk/iiif/jp2/abc.tif.jp2/full/240,/0/default.jpg')
+  // サムネイルが IIIF なら幅だけ変え、そうでなければそのまま
+  expect(smkImage('https://iip-thumb.smk.dk/iiif/jp2/x.jp2/full/!1024,/0/default.jpg', undefined)).toBe('https://iip-thumb.smk.dk/iiif/jp2/x.jp2/full/240,/0/default.jpg')
+  expect(smkImage('https://api.smk.dk/api/v1/thumbnail/a.jpg', undefined)).toBe('https://api.smk.dk/api/v1/thumbnail/a.jpg')
+  expect(smkImage(undefined, undefined)).toBeUndefined()
+})
+
+test('アムステルダム国立美術館：Linked Art から英語の題名・作者・説明と IIIF 画像を取る', () => {
+  const en = [{ id: 'http://vocab.getty.edu/aat/300388277' }]
+  const nl = [{ id: 'http://vocab.getty.edu/aat/300388256' }]
+  const data = {
+    identified_by: [
+      { type: 'Identifier', content: 'SK-A-2344' },
+      { type: 'Name', content: 'Het melkmeisje', language: nl },
+      { type: 'Name', content: 'The Milkmaid', language: en },
+    ],
+    produced_by: { part: [{ carried_out_by: [{ notation: [{ '@language': 'nl', '@value': 'Johannes Vermeer' }, { '@language': 'en', '@value': 'Johannes Vermeer' }] }] }] },
+    referred_to_by: [{ content: 'A maidservant pours milk.', language: en, classified_as: [{ id: 'http://vocab.getty.edu/aat/300435452' }] }],
+  }
+  const raw = JSON.stringify(data) + ' "https://iiif.micr.io/AbC12/full/max/0/default.jpg"'
+  const shown = rijksItem(data, raw, 1658)
+  expect(shown?.title).toBe('The Milkmaid')
+  expect(shown?.summary).toBe('Johannes Vermeer / 1658年ごろ ／ A maidservant pours milk.')
+  expect(shown?.url).toBe('https://www.rijksmuseum.nl/en/collection/SK-A-2344')
+  expect(shown?.image?.url).toBe('https://iiif.micr.io/AbC12/full/240,/0/default.jpg')
+  expect(rijksItem(data, JSON.stringify(data), 1658)).toBeUndefined()
+})
+
+test('ジャパンサーチ：日本の館の絵画をライセンス付きで出し、webp だけのものは飛ばす', () => {
+  const c = {
+    id: 'cobas-47577',
+    title: '東海道五拾三次之内　日本橋',
+    contributor: ['歌川広重筆', 'By Utagawa Hiroshige (1797-1858)', '東京国立博物館', 'Tokyo National Museum'],
+    temporal: ['江戸時代'],
+    description: '<p>東海道＠とうかいどう＠の53駅。<br /></p>',
+    contentsUrl: ['https://colbase.nich.go.jp/media/tnm/A-10594/image/slideshow_s/A-10594_C0017335.jpg'],
+    linkUrl: 'https://colbase.nich.go.jp/collection_items/tnm/A-10594',
+  }
+  const shown = japanSearchItem(c, 'CC BY')
+  expect(shown?.site).toBe('ジャパンサーチ 絵画・CC BY')
+  expect(shown?.summary).toBe('歌川広重筆 / 東京国立博物館 / 江戸時代 ／ 東海道の53駅。')
+  expect(shown?.lang).toBe('ja')
+  expect(shown?.image?.url).toBe(c.contentsUrl[0])
+  expect(japanSearchItem({ ...c, contentsUrl: ['https://example.jp/a.jpg.webp'] }, 'CC0')).toBeUndefined()
+  expect(japanSearchItem({ ...c, contentsUrl: ['https://museumcollection.tokyo/wp-content/uploads/a-L.jpg'] }, 'PDM')).toBeUndefined()
+})
+
+test('絵画：選んだ館が取れなければ別の館を試す', async () => {
+  expect(MUSEUMS.map(one => one.site)).toEqual(['Commons 絵画', 'SMK 絵画', 'アムステルダム国立美術館', 'ジャパンサーチ 絵画'])
+  const fetch: Fetch = async url => {
+    if (url.includes('jpsearch.go.jp')) {
+      return ok({ list: [{ common: { id: 'x', title: '富士', contentsUrl: ['https://example.jp/fuji.jpg'], linkUrl: 'https://example.jp/fuji' } }] })
+    }
+    throw new Error('offline')
+  }
+  const shown = await painting.load(fetch, () => 0)
+  expect(shown.site.startsWith('ジャパンサーチ 絵画')).toBe(true)
+  let failed = false
+  await painting.load(failing, () => 0).catch(() => (failed = true))
+  expect(failed).toBe(true)
 })
