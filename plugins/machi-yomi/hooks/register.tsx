@@ -2,10 +2,12 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { MachiYomiHistoryEntry, MachiYomiImage, MachiYomiItem } from '../types'
-import { MAX_WIDTH, THUMB_WIDTH, imageCells, imageSize, pictureSvg } from './art'
+import { MAX_WIDTH, THUMB_WIDTH, imageSize, pictureSvg } from './art'
 import { HEADERS } from './common'
 import { addEntry, jst, toMarkdown } from './history'
 import { MULTI_LINES, SINGLE_LINES, fit, width } from './layout'
+import { pictureElement } from './picture'
+import type { Picture } from './picture'
 import { nextBatch } from './sources'
 import { readConfig, translateItem } from './translate'
 import type { TranslateConfig } from './translate'
@@ -26,8 +28,7 @@ let translateConfig: TranslateConfig = readConfig({})
 /** 最後に帯を描いた画面の種類（端末なら画像を PNG にもする） */
 let lastSurface = 'terminal'
 
-/** 取り込んだ画像（縮小版の URL ごと）：画面にそのまま埋め込む画像と、端末用の PNG。どちらも base64 */
-type Picture = { data: string; width: number; height: number; png?: string }
+/** 取り込んだ画像（縮小版の URL ごと） */
 const pictures = new Map<string, Picture>()
 
 /** ~/.claude/machi-yomi の場所 */
@@ -211,8 +212,7 @@ export const register: Register = (on, options) => {
     }
     const shown = await read($, current)
     const n = await read($, count)
-    const elements = $.ui.resolve(e)
-    const { Box, Text, Link, Button } = elements
+    const { Box, Text, Link, Button } = $.ui.resolve(e)
     lastSurface = e.surface
 
     // 見出し・トピックごとにタイトルと要約・リンク。要約が 5 行に届かなければ複数並ぶ
@@ -221,20 +221,10 @@ export const register: Register = (on, options) => {
     const accent = shown.some(one => one.isAd) ? 'yellow' : 'cyan'
     const lines = shown.length > 1 ? MULTI_LINES : SINGLE_LINES
 
-    /** その記事の画像：端末は Image（PNG）、ほかの画面は画像を埋め込んだ Svg。出せなければ undefined */
+    /** その記事の画像（出せなければ undefined） */
     const picture = (one: MachiYomiItem) => {
       const got = one.image && pictures.get(one.image.url)
-      if (!got) return undefined
-      const alt = `絵：${one.title}`
-      if ('Image' in elements) {
-        if (!got.png) return undefined
-        const size = imageCells(got.width, got.height)
-        return { columns: size.columns, node: <elements.Image key={`art-${n}`} source={{ png: got.png }} columns={size.columns} rows={size.rows} alt={alt} /> }
-      }
-      if (!('Svg' in elements)) return undefined
-      const svg = pictureSvg(got.data)
-      const height = 120
-      return svg ? { columns: 0, node: <elements.Svg source={svg} alt={alt} width={Math.round((got.width * height) / got.height)} height={height} /> } : undefined
+      return got ? pictureElement($, e, got, `絵：${one.title}`, `art-${n}`) : undefined
     }
 
     return (

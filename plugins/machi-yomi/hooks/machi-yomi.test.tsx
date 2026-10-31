@@ -2,6 +2,7 @@ import { expect, test } from 'claude-code/testing'
 import type { HttpResponse } from 'claude-code'
 
 import { SVG_LIMIT, cleanMeta, commonsPainting, imageCells, imageSize, isOpenLicense, paintingItem, pictureSvg } from './art'
+import { pictureElement } from './picture'
 import { MUSEUMS, japanSearchItem, painting, rijksItem, smkImage, smkPainting } from './museums'
 import { addEntry, toMarkdown } from './history'
 import { MAX_TOPICS, MIN_LINES, summaryLines } from './layout'
@@ -355,4 +356,38 @@ test('絵画：選んだ館が取れなければ別の館を試す', async () =>
   let failed = false
   await painting.load(failing, () => 0).catch(() => (failed = true))
   expect(failed).toBe(true)
+})
+
+test('画像はデスクトップでは Svg、端末では Image で描く（resolve の表に Image があっても端末だけ）', async ($, on) => {
+  const bytes = (list: number[]) => btoa(String.fromCharCode(...list))
+  const jpeg = bytes([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x04, 0x4a, 0x46, 0xff, 0xc0, 0x00, 0x11, 0x08, 0x00, 0xb4, 0x00, 0xf0, 0x03, 0, 0, 0, 0])
+  // 端末の Image は PNG の中身まで確かめるので、本物の 1×1 の PNG を使う
+  const got = { data: jpeg, width: 240, height: 180, png: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC' }
+  const hasImage: Record<string, boolean> = {}
+  // 帯が作業中でないときは下に任せるので、そこで絵だけを描く
+  on('ui.render', { component: 'AbovePrompt' }, ($, e) => {
+    const { Box, Text } = $.ui.resolve(e)
+    hasImage[e.surface] = 'Image' in $.ui.resolve(e)
+    const pic = pictureElement($, e, got, '絵：テスト', 'art-1')
+    return <Box>{pic?.node ?? <Text>no picture</Text>}</Box>
+  })
+  const props = { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 80, scroll: { offset: 0, bodyRows: 10 }, view: {} }
+
+  const desktop = await $.ui.mount({ plugin: 'machi-yomi', surface: 'desktop', component: 'AbovePrompt', props })
+  await desktop.drawn()
+  const svg = await desktop.find({ type: 'Svg' })
+  expect(svg).toBeDefined()
+  expect(String(svg?.props.source)).toContain(`data:image/jpeg;base64,${jpeg}`)
+  expect(svg?.props.width).toBe(160)
+  expect(await desktop.find({ type: 'Image' })).toBeUndefined()
+  // デスクトップの表にも Image の名前はある（中身のない入れ物）。だから e.surface で分ける
+  expect(hasImage.desktop).toBe(true)
+  await desktop.unmount()
+
+  const terminal = await $.ui.mount({ plugin: 'machi-yomi', surface: 'terminal', component: 'AbovePrompt', props })
+  await terminal.drawn()
+  const image = await terminal.find({ type: 'Image' })
+  expect(image?.props.columns).toBe(21)
+  expect(await terminal.find({ type: 'Svg' })).toBeUndefined()
+  await terminal.unmount()
 })
